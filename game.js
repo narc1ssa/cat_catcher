@@ -1,3 +1,15 @@
+// Resolve against the module, not the page URL. Vite bundles these files
+// and rewrites their URLs, including deployments in a repository subdirectory.
+const assetURLs = {
+  garden: new URL('./assets/garden.jpg', import.meta.url).href,
+  player: new URL('./assets/player.png', import.meta.url).href,
+  cat0: new URL('./assets/cat0.png', import.meta.url).href,
+  cat1: new URL('./assets/cat1.png', import.meta.url).href,
+  cat2: new URL('./assets/cat2.png', import.meta.url).href,
+  cat3: new URL('./assets/cat3.png', import.meta.url).href,
+  cat4: new URL('./assets/cat4.png', import.meta.url).href,
+  cat5: new URL('./assets/cat5.png', import.meta.url).href,
+};
 const $ = id => document.getElementById(id);
 const canvas = $('canvas'), ctx = canvas.getContext('2d');
 const W = 1160, H = 550;
@@ -43,6 +55,7 @@ function overlay(label, title, description, button) {
 }
 function start() {
   if (state === 'loading') return;
+  if (state === 'error') { load(); return; }
   if (state === 'paused') { resume(); return; }
   score = caught = elapsed = 0; lives = 3; player = 580; cats = []; particles = []; spawnIn = .3;
   state = 'playing'; keys.clear();
@@ -122,7 +135,7 @@ function update(dt) {
 }
 function draw(time) {
   ctx.clearRect(0,0,W,H);
-  if (images.garden?.complete) ctx.drawImage(images.garden,0,0,W,H);
+  if (images.garden?.complete && images.garden.naturalWidth) ctx.drawImage(images.garden,0,0,W,H);
   const wash = ctx.createLinearGradient(0,0,0,H); wash.addColorStop(0,'rgba(186,218,204,.15)'); wash.addColorStop(1,'rgba(61,77,32,.09)'); ctx.fillStyle = wash; ctx.fillRect(0,0,W,H);
   if (state === 'ready' || state === 'loading') {
     sprite(images.cat0, 695 + Math.sin(time * .0007) * 12, 145 + Math.sin(time * .001) * 10, 91, -.12);
@@ -147,14 +160,16 @@ function frame(time) {
 async function load() {
   $('start').disabled = true;
   try {
-    await Promise.all([['garden','garden.jpg'],['player','player.png'],...Array.from({length:6},(_,i)=>[`cat${i}`,`cat${i}.png`])].map(([key,file]) => new Promise((resolve,reject) => {
-      const image = new Image(); images[key] = image; image.onload=resolve;image.onerror=reject;image.src=`assets/${file}`;
+    await Promise.all(Object.entries(assetURLs).map(([key,url]) => new Promise((resolve,reject) => {
+      const image = new Image(); images[key] = image; image.onload=resolve;image.onerror=reject;image.src=url;
     })));
     state='ready'; $('start').disabled=false;
+    overlay('ДОБРО ПОЖАЛОВАТЬ ВО ДВОР', 'Коты падают.<br>Ты — их надежда.', 'Надевай перчатки, занимай позицию.<br>Ни одного пушистого мимо!', 'Начать игру');
   } catch {
-    $('modal-title').textContent='Не удалось загрузить котов';
-    $('modal-description').textContent='Обнови страницу, чтобы попробовать снова.';
+    state = 'error';
+    overlay('ОШИБКА ЗАГРУЗКИ', 'Не удалось загрузить котов', 'Проверь подключение и попробуй ещё раз.', 'Повторить загрузку');
+    $('start').disabled = false;
   }
-  requestAnimationFrame(frame);
 }
+requestAnimationFrame(frame);
 load();
