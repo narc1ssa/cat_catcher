@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="ru">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#faf8f2"><title>Котолов — ни одного кота мимо!</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<header class="header"><a href="./" class="brand"><span class="brand-icon"><svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true"><path d="M6 15V6l8 5h4l8-5v9c3 3 2 10-2 12-4 3-12 3-16 0-4-2-5-9-2-12Z" fill="currentColor"/><path d="M11 18v2m10-2v2m-7 3 2 2 2-2" stroke="#d5723f" stroke-width="2" stroke-linecap="round"/></svg></span> котолов<span class="brand-dot">.</span></a><span class="header-note">Маленькая игра. Большое добро.</span><button id="sound" class="icon-button" aria-label="Включить звук" title="Включить звук">♪<span class="sound-state">выкл.</span></button></header>
+<main>
+<section class="intro"><div><div class="eyebrow"><span></span> ОСТОРОЖНО, КОТОПАД!</div><h1>Все коты <em>должны быть пойманы.</em></h1><p>Лови пушистых непосед и стань героем этого двора.</p></div><div class="record"><span class="trophy">♜</span><div><span>ЛИЧНЫЙ РЕКОРД</span><strong id="record">0 <small>очков</small></strong></div></div></section>
+<section class="game-shell" aria-label="Игра Котолов">
+<div class="game" id="game"><canvas id="canvas" width="1160" height="550" aria-label="Игровое поле: ловите котов стрелками влево и вправо"></canvas><div class="game-shade"></div>
+<div class="hud"><div class="hud-left"><div class="stat"><span>ПОЙМАНО</span><strong><span id="caught">0</span><small> котов</small></strong></div><div class="stat score"><span>СЧЁТ</span><strong id="score">0</strong></div></div><div class="hud-right"><div class="lives" id="lives" aria-label="3 жизни">♥ ♥ ♥</div><button id="pause" class="pause" aria-label="Пауза" disabled>Ⅱ</button></div></div>
+<div class="overlay" id="overlay"><div class="welcome"><span class="pill" id="modal-label">ДОБРО ПОЖАЛОВАТЬ ВО ДВОР</span><h2 id="modal-title">Коты падают.<br>Ты — их надежда.</h2><p id="modal-description">Надевай перчатки, занимай позицию.<br>Ни одного пушистого мимо!</p><button id="start" class="primary">Начать игру <span>→</span></button><div class="start-hint" id="start-hint"><kbd>←</kbd><kbd>→</kbd> двигайся и лови котов</div></div></div>
+<div class="level-tag"><span class="live-dot"></span><span id="level">Тихий двор · Уровень 1</span></div>
+<div class="floating-note" id="floating-note">Каждому коту — мягкую посадку.</div>
+</div>
+<div class="game-bottom"><div class="controls-caption"><span class="key-group"><kbd>←</kbd><kbd>→</kbd></span><span>Двигаться</span><span class="divider"></span><kbd>Пробел</kbd><span>Пауза</span></div><span class="bottom-note">Лови котов, а не ворон <span>✧</span></span><div class="touch-controls"><button id="left" aria-label="Двигаться влево">←</button><button id="right" aria-label="Двигаться вправо">→</button></div></div>
+</section>
+<section class="tips"><article><span class="tip-icon orange">↔</span><div><h3>Будь наготове</h3><p>Управляй ловцом стрелками ← и →.<br>Вставай прямо под падающим котом.</p></div></article><article><span class="tip-icon green">✧</span><div><h3>Лови всех подряд</h3><p>Каждый спасённый кот — это 10 очков.<br>Со временем котопад станет быстрее!</p></div></article><article><span class="tip-icon pink">♡</span><div><h3>Береги свои жизни</h3><p>У тебя есть право на три промаха.<br>Побей свой рекорд и попробуй ещё.</p></div></article></section>
+</main><footer><span>Сделано с заботой о котиках</span><span class="footer-paw">✣</span><span>Ни один кот при создании игры не пострадал.</span></footer>
+<script type="module" src="game.js"></script></body></html>
