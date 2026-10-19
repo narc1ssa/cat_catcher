@@ -7,6 +7,28 @@ const assetURLs = {
   garden: new URL('./assets/garden.jpg', import.meta.url).href,
 };
 const $ = id => document.getElementById(id);
+if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator &&
+    typeof location !== 'undefined' && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
+}
+let deferredInstallPrompt = null;
+const installButton = $('install');
+window.addEventListener('beforeinstallprompt', event => {
+  event.preventDefault();
+  deferredInstallPrompt = event;
+  installButton.hidden = false;
+});
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  installButton.hidden = true;
+});
+installButton.addEventListener('click', async () => {
+  if (!deferredInstallPrompt) return;
+  const prompt = deferredInstallPrompt;
+  deferredInstallPrompt = null;
+  try { await prompt.prompt(); await prompt.userChoice; } catch {}
+  installButton.hidden = true;
+});
 const canvas = $('canvas');
 let ctx;
 try { ctx = canvas.getContext('2d'); } catch {} // Optional; gameplay uses DOM sprites.
@@ -170,7 +192,8 @@ function spawn() {
   const level = Math.floor(elapsed / 20);
   const width = 76 + Math.random() * 15;
   const visualWidth = width * 1.15 * CAT_SIZE_MULTIPLIER;
-  cats.push({x: visualWidth / 2 + Math.random() * (W - visualWidth), y: -65, type: Math.floor(Math.random() * 6), speed: 180 + Math.min(level * 25, 170) + Math.random() * 35, phase: Math.floor(Math.random() * 12), age: 0, width});
+  const edgeMargin = Math.max(65, visualWidth / 2);
+  cats.push({x: edgeMargin + Math.random() * (W - 2 * edgeMargin), y: -65, type: Math.floor(Math.random() * 6), speed: 180 + Math.min(level * 25, 170) + Math.random() * 35, phase: Math.floor(Math.random() * 12), age: 0, width});
   spawnIn = Math.max(.52, 1.45 - level * .14) + Math.random() * .3;
 }
 function update(dt) {

@@ -40,3 +40,7 @@
 .touch-controls button:focus-visible{outline:3px solid #ed7c43;outline-offset:3px}
 .keyboard-hint{display:flex;align-items:center;gap:5px}.touch-hint{display:none}
 @media(max-width:750px),(pointer:coarse){.touch-controls{display:flex}.game-bottom{display:none}.game .level-tag{left:50%;bottom:86px;transform:translateX(-50%)}.keyboard-hint{display:none}.touch-hint{display:block;text-align:center}}
+.install-button{background:#f4f2e9;color:#687858;font-size:15px;padding:9px 12px}
+.install-label{font-size:11px}
+.install-button[hidden]{display:none}
+@media(max-width:380px){.install-button{padding:8px 10px}.install-label{display:none}}
