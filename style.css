@@ -68,3 +68,14 @@ html.is-standalone main { max-width:none; margin:0; padding:0; width:100%; }
 html.is-standalone .game-shell { max-width:none; width:100%; height:100dvh; min-height:100dvh; height:100dvh; border-radius:0; border:0; box-shadow:none; overflow:hidden; }
 html.is-standalone .game { height:100%; width:100%; aspect-ratio:auto; overflow:hidden; }
 html.is-standalone .game-shade { box-shadow:inset 0 0 70px #193a1b30; }
+
+/* Sound toggle: speaker icon + label, available both in the page header and
+   inside the game HUD (the header is hidden in the installed Android build). */
+.sound-toggle{display:flex;align-items:center;gap:6px;font-size:18px;line-height:1}
+.sound-toggle .sound-icon{font-size:16px;filter:grayscale(1);opacity:.6;transition:filter .2s,opacity .2s}
+.sound-toggle:not(.is-muted) .sound-icon{filter:none;opacity:1}
+.sound-toggle.is-muted .sound-icon{filter:grayscale(1);opacity:.55}
+.sound-toggle .sound-state{font-size:11px}
+#sound-game{pointer-events:auto;padding:0;width:42px;height:42px;justify-content:center;border-color:#ffffff9c;background:#fffdf2eb;color:#465b48;font-size:18px}
+#sound-game .sound-state{display:none}
+@media(max-width:750px){#sound-game{width:34px;height:34px;font-size:16px}.sound-toggle .sound-icon{font-size:15px}}
