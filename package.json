@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0",
-    "test": "node --test tests/*.test.cjs"
+    "build": "node scripts/build-standalone.cjs",
+    "preview": "node scripts/serve.cjs",
+    "test": "node --test tests/*.test.cjs",
+    "build:modules": "vite build"
   },
   "devDependencies": {
     "vite": "^6.1.0"
