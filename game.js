@@ -94,16 +94,26 @@ function drawCat(type, x, y, width, age, phase = 0, angle = 0) {
   ctx.restore();
 }
 let state = 'loading', score = 0, caught = 0, lives = 3, elapsed = 0, spawnIn = .5;
-let player = W * .62, cats = [], particles = [], previous = 0, best = 0, muted = true, audio;
+let player = W * .62, cats = [], particles = [], previous = 0, best = 0, audio;
+// Sound is on by default: browsers only allow audio after the first user
+// gesture, which is why the context is created lazily on click/tap/keypress.
+const SOUND_PREF_KEY = 'cat-catcher-muted';
+let muted = false;
 const keys = new Set();
 try { best = Number(localStorage.getItem('cat-catcher-best')) || 0; } catch {}
+try { muted = localStorage.getItem(SOUND_PREF_KEY) === '1'; } catch {}
 function updateRecord() { $('record').innerHTML = `${best} <small>очков</small>`; }
 updateRecord();
 function ensureAudio() {
   if (muted) return null;
   try {
     audio ||= new (window.AudioContext || window.webkitAudioContext)();
-    if (audio.state === 'suspended') audio.resume();
+    // Android WebView / iOS pause the context until a gesture and after
+    // backgrounding; resuming is a no-op when it already runs.
+    if (audio.state === 'suspended') {
+      const resumed = audio.resume();
+      if (resumed && typeof resumed.catch === 'function') resumed.catch(() => {});
+    }
     return audio;
   } catch { return null; }
 }
@@ -129,7 +139,7 @@ function playMusicNote() {
     const osc = ctx.createOscillator(), gain = ctx.createGain();
     osc.type = 'sine';
     osc.frequency.value = freq;
-    gain.gain.setValueAtTime(0.035, ctx.currentTime);
+    gain.gain.setValueAtTime(0.045, ctx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
     osc.connect(gain); gain.connect(ctx.destination);
     osc.start(); osc.stop(ctx.currentTime + 0.5);
@@ -162,7 +172,7 @@ function playMeow(base = 480 + Math.random() * 220) {
     osc.frequency.linearRampToValueAtTime(base * 1.35, now + 0.08);
     osc.frequency.linearRampToValueAtTime(base * 0.72, now + 0.28);
     osc.frequency.linearRampToValueAtTime(base * 0.95, now + 0.38);
-    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.setValueAtTime(0.22, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
     osc.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
     osc.start(now); osc.stop(now + 0.42);
@@ -188,24 +198,55 @@ function playMissSound() {
     const now = ctx.currentTime;
     osc.frequency.setValueAtTime(420, now);
     osc.frequency.exponentialRampToValueAtTime(90, now + 0.55);
-    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.setValueAtTime(0.11, now);
     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
     osc.connect(gain); gain.connect(ctx.destination);
     osc.start(now); osc.stop(now + 0.55);
   } catch {}
   setTimeout(() => playMeow(380), 120);
 }
-$('sound').onclick = () => {
-  muted = !muted;
-  $('sound').querySelector('span').textContent = muted ? 'выкл.' : 'вкл.';
-  $('sound').setAttribute('aria-label', muted ? 'Включить звук' : 'Выключить звук');
-  if (!muted) {
+function syncSoundUI() {
+  for (const button of [$('sound'), $('sound-game')]) {
+    if (!button) continue;
+    const stateLabel = button.querySelector?.('.sound-state');
+    if (stateLabel) stateLabel.textContent = muted ? 'выкл.' : 'вкл.';
+    const icon = button.querySelector?.('.sound-icon');
+    if (icon) icon.textContent = muted ? '🔇' : '🔊';
+    button.classList.toggle('is-muted', muted);
+    button.setAttribute('aria-pressed', String(!muted));
+    button.setAttribute('aria-label', muted ? 'Включить звук' : 'Выключить звук');
+    button.setAttribute('title', muted ? 'Включить звук' : 'Выключить звук');
+  }
+}
+function setMuted(next) {
+  muted = next;
+  try { localStorage.setItem(SOUND_PREF_KEY, muted ? '1' : '0'); } catch {}
+  if (muted) {
+    stopMusic();
+    try {
+      if (audio && audio.state === 'running') {
+        const suspended = audio.suspend();
+        if (suspended && typeof suspended.catch === 'function') suspended.catch(() => {});
+      }
+    } catch {}
+  } else {
+    // Called from the toggle click, so the browser accepts the audio context.
+    ensureAudio();
     sound(520);
     if (state === 'playing') startMusic();
-  } else {
-    stopMusic();
   }
-};
+  syncSoundUI();
+}
+for (const button of [$('sound'), $('sound-game')]) {
+  button?.addEventListener('click', () => setMuted(!muted));
+}
+syncSoundUI();
+// Browsers (and Android WebView) unlock Web Audio only after a gesture.
+// Create/resume the context on the first interaction so later sounds play.
+function unlockAudio() { if (!muted) ensureAudio(); }
+window.addEventListener('pointerdown', unlockAudio, { passive: true });
+window.addEventListener('keydown', unlockAudio);
+window.addEventListener('touchstart', unlockAudio, { passive: true });
 function hud() {
   $('caught').textContent = caught;
   $('score').textContent = score;

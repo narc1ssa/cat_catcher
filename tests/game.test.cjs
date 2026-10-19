@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
-async function game(fail = false) {
+async function game(fail = false, stored = {}) {
   const elements = new Map();
   const element = id => {
     if (!elements.has(id)) {
@@ -19,7 +19,7 @@ async function game(fail = false) {
     }
     return elements.get(id);
   };
-  const storage = new Map();
+  const storage = new Map(Object.entries(stored));
   const context = vm.createContext({document:{getElementById:element,addEventListener(){},createElement(){return {style:{},dataset:{},remove(){this.removed=true}}}},window:{addEventListener(){}},localStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},URL, Image:class {get src(){return this._src}set src(v){this._src=v;this.complete=true;this.naturalWidth=100;queueMicrotask(()=>fail ? this.onerror() : this.onload())}},requestAnimationFrame(){},console});
   const manifest = fs.readFileSync('assets/animations/frames.js','utf8')
     .replace('export default', 'const catFrameURLs =')
@@ -266,4 +266,57 @@ test('portrait world is 9:16 and catches cats above the player',async()=>{
  g.run('start()');assert.equal(g.run('player'),270);
  for(let i=0;i<30;i++)g.run('spawn()');
  assert.equal(g.run('cats.every(cat=>cat.x>=65 && cat.x<=W-65)'),true);
+});
+
+test('sound is on by default, so the mute button does not need a first tap',async()=>{
+ const g=await game();
+ g.run('window.setInterval=()=>1; window.clearInterval=()=>{};');
+ assert.equal(g.run('muted'),false);
+ assert.equal(g.elements.get('sound').attributes['aria-label'],'Выключить звук');
+ assert.equal(g.elements.get('sound').attributes['aria-pressed'],'true');
+ // SFX actually reach an AudioContext instead of being skipped as muted.
+ g.run(`var played=0;
+   window.AudioContext=class{
+     constructor(){this.state='running';this.currentTime=0;this.destination={}}
+     resume(){this.state='running';return Promise.resolve()}
+     suspend(){this.state='suspended';return Promise.resolve()}
+     createOscillator(){return {type:'',frequency:{setValueAtTime(){},exponentialRampToValueAtTime(){},linearRampToValueAtTime(){},value:0},connect(){},start(){played++},stop(){}}}
+     createGain(){return {gain:{setValueAtTime(){},exponentialRampToValueAtTime(){},value:0},connect(){}}}
+     createBiquadFilter(){return {type:'',frequency:{value:0},Q:{value:1},connect(){}}}
+   };
+   start(); sound(720); playMeow(500);`);
+ assert.ok(g.run('played')>=2);
+ assert.ok(g.run('musicTimer')!==null);
+ g.run('stopMusic()');
+});
+
+test('the sound button mutes the game and remembers the choice',async()=>{
+ const g=await game();
+ g.elements.get('sound').listeners.click[0]();
+ assert.equal(g.run('muted'),true);
+ assert.equal(g.elements.get('sound').attributes['aria-label'],'Включить звук');
+ assert.equal(g.elements.get('sound').attributes['aria-pressed'],'false');
+ assert.equal(g.storage.get('cat-catcher-muted'),'1');
+ assert.equal(g.run('ensureAudio()'),null);
+ g.elements.get('sound').listeners.click[0]();
+ assert.equal(g.run('muted'),false);
+ assert.equal(g.storage.get('cat-catcher-muted'),'0');
+ assert.equal(g.elements.get('sound-game').attributes['aria-pressed'],'true');
+});
+
+test('a muted preference from a previous visit is restored',async()=>{
+ const g=await game(false, {'cat-catcher-muted':'1'});
+ assert.equal(g.run('muted'),true);
+ assert.equal(g.elements.get('sound').attributes['aria-label'],'Включить звук');
+ assert.equal(g.run('ensureAudio()'),null);
+});
+
+test('installed Android build keeps a sound switch inside the game HUD',()=>{
+ const html=fs.readFileSync('index.html','utf8');
+ const css=fs.readFileSync('style.css','utf8');
+ assert.match(html,/id="sound-game"[^>]*class="[^"]*sound-toggle/);
+ assert.match(html,/id="sound"[^>]*class="[^"]*sound-toggle/);
+ // Header is hidden in standalone mode, so the HUD button is the only control left.
+ assert.match(css,/html\.is-standalone \.header,[\s\S]*?display:none/);
+ assert.match(css,/#sound-game\{[^}]*pointer-events:auto/);
 });
