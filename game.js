@@ -6,6 +6,21 @@ import playerFrameURLs from './assets/animations/player/frames.js';
 const assetURLs = {
   garden: new URL('./assets/garden.jpg', import.meta.url).href,
 };
+// Android standalone mode: hide everything outside the game field (as on screenshot).
+// When installed as PWA / Capacitor app the page runs in standalone display mode.
+try {
+  const standaloneQuery = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+  const isCapacitor = typeof window.Capacitor !== 'undefined' || (typeof navigator !== 'undefined' && /Capacitor/.test(navigator.userAgent || ''));
+  const urlStandalone = typeof location !== 'undefined' && new URLSearchParams(location.search).has('standalone');
+  if (standaloneQuery || isCapacitor || urlStandalone || (typeof navigator !== 'undefined' && navigator.standalone)) {
+    document.documentElement.classList.add('is-standalone');
+  }
+  if (window.matchMedia) {
+    window.matchMedia('(display-mode: standalone)').addEventListener?.('change', e => {
+      document.documentElement.classList.toggle('is-standalone', e.matches);
+    });
+  }
+} catch {}
 const $ = id => document.getElementById(id);
 if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator &&
     typeof location !== 'undefined' && location.protocol !== 'file:') {
@@ -84,24 +99,112 @@ const keys = new Set();
 try { best = Number(localStorage.getItem('cat-catcher-best')) || 0; } catch {}
 function updateRecord() { $('record').innerHTML = `${best} <small>очков</small>`; }
 updateRecord();
-function sound(frequency, duration = .12) {
-  if (muted) return;
+function ensureAudio() {
+  if (muted) return null;
   try {
     audio ||= new (window.AudioContext || window.webkitAudioContext)();
     if (audio.state === 'suspended') audio.resume();
-    const osc = audio.createOscillator(), gain = audio.createGain();
-    osc.type = 'sine'; osc.frequency.setValueAtTime(frequency, audio.currentTime);
-    osc.frequency.exponentialRampToValueAtTime(frequency * 1.5, audio.currentTime + duration);
-    gain.gain.setValueAtTime(.06, audio.currentTime);
-    gain.gain.exponentialRampToValueAtTime(.001, audio.currentTime + duration);
-    osc.connect(gain); gain.connect(audio.destination); osc.start(); osc.stop(audio.currentTime + duration);
+    return audio;
+  } catch { return null; }
+}
+function sound(frequency, duration = .12) {
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  try {
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.type = 'sine'; osc.frequency.setValueAtTime(frequency, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(frequency * 1.5, ctx.currentTime + duration);
+    gain.gain.setValueAtTime(.06, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + duration);
+    osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + duration);
   } catch {}
+}
+let musicTimer = null, musicIndex = 0;
+const MUSIC_NOTES = [262, 330, 392, 523, 440, 392, 330, 294, 262, 330, 392, 440, 523, 440, 392];
+function playMusicNote() {
+  const ctx = ensureAudio();
+  if (!ctx || muted || state !== 'playing') return;
+  const freq = MUSIC_NOTES[musicIndex++ % MUSIC_NOTES.length];
+  try {
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.035, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(); osc.stop(ctx.currentTime + 0.5);
+  } catch {}
+}
+function startMusic() {
+  if (musicTimer || muted) return;
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  musicIndex = 0;
+  try { if (ctx.state === 'suspended') ctx.resume(); } catch {}
+  const interval = (typeof window !== 'undefined' && typeof window.setInterval === 'function') ? window.setInterval.bind(window) : setInterval;
+  musicTimer = interval(playMusicNote, 420);
+  playMusicNote();
+}
+function stopMusic() {
+  if (!musicTimer) return;
+  const clear = (typeof window !== 'undefined' && typeof window.clearInterval === 'function') ? window.clearInterval.bind(window) : clearInterval;
+  clear(musicTimer); musicTimer = null;
+}
+function playMeow(base = 480 + Math.random() * 220) {
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  try {
+    const osc = ctx.createOscillator(), gain = ctx.createGain(), filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass'; filter.frequency.value = 900; filter.Q.value = 1.2;
+    osc.type = 'triangle';
+    const now = ctx.currentTime;
+    osc.frequency.setValueAtTime(base, now);
+    osc.frequency.linearRampToValueAtTime(base * 1.35, now + 0.08);
+    osc.frequency.linearRampToValueAtTime(base * 0.72, now + 0.28);
+    osc.frequency.linearRampToValueAtTime(base * 0.95, now + 0.38);
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.42);
+    osc.connect(filter); filter.connect(gain); gain.connect(ctx.destination);
+    osc.start(now); osc.stop(now + 0.42);
+  } catch {}
+}
+function playCatchSound() {
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  sound(720, 0.12);
+  try {
+    const t = ctx.currentTime;
+    setTimeout(() => sound(880, 0.14), 90);
+    setTimeout(() => sound(1040, 0.16), 190);
+  } catch {}
+  setTimeout(() => playMeow(620), 40);
+}
+function playMissSound() {
+  const ctx = ensureAudio();
+  if (!ctx) return;
+  try {
+    const osc = ctx.createOscillator(), gain = ctx.createGain();
+    osc.type = 'sawtooth';
+    const now = ctx.currentTime;
+    osc.frequency.setValueAtTime(420, now);
+    osc.frequency.exponentialRampToValueAtTime(90, now + 0.55);
+    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(now); osc.stop(now + 0.55);
+  } catch {}
+  setTimeout(() => playMeow(380), 120);
 }
 $('sound').onclick = () => {
   muted = !muted;
   $('sound').querySelector('span').textContent = muted ? 'выкл.' : 'вкл.';
   $('sound').setAttribute('aria-label', muted ? 'Включить звук' : 'Выключить звук');
-  sound(520);
+  if (!muted) {
+    sound(520);
+    if (state === 'playing') startMusic();
+  } else {
+    stopMusic();
+  }
 };
 function hud() {
   $('caught').textContent = caught;
@@ -127,20 +230,24 @@ function start() {
   $('overlay').classList.add('hidden'); $('pause').disabled = false; $('pause').textContent = 'Ⅱ';
   $('pause').setAttribute('aria-label', 'Пауза'); $('floating-note').textContent = 'Каждому коту — мягкую посадку.';
   hud(); sound(440);
+  if (!muted) startMusic();
 }
 function resume() {
   state = 'playing'; keys.clear(); $('overlay').classList.add('hidden');
   $('pause').textContent = 'Ⅱ'; $('pause').setAttribute('aria-label', 'Пауза');
+  if (!muted) startMusic();
 }
 function pause() {
   if (state === 'playing') {
     state = 'paused'; keys.clear();
     overlay('МОЖНО ВЫДОХНУТЬ', 'Котопад<br>подождёт.', 'Коты зависли в воздухе.<br>Возвращайся, когда будешь готов.', 'Продолжить');
     $('pause').textContent = '▷'; $('pause').setAttribute('aria-label', 'Продолжить');
+    stopMusic();
   } else if (state === 'paused') resume();
 }
 function finish() {
   state = 'over'; keys.clear(); $('pause').disabled = true;
+  stopMusic();
   const record = score > best;
   if (record) { best = score; try { localStorage.setItem('cat-catcher-best', String(best)); } catch {} updateRecord(); }
   overlay(record ? 'НОВЫЙ ЛИЧНЫЙ РЕКОРД!' : 'СПАСИБО, ГЕРОЙ ДВОРА', `Спасено котов: ${caught}`, `Твой счёт — <b>${score}</b> очков.<br>Пушистые верят в тебя. Попробуем ещё?`, 'Играть ещё');
@@ -195,6 +302,7 @@ function spawn() {
   const edgeMargin = Math.max(65, visualWidth / 2);
   cats.push({x: edgeMargin + Math.random() * (W - 2 * edgeMargin), y: -65, type: Math.floor(Math.random() * 6), speed: 180 + Math.min(level * 25, 170) + Math.random() * 35, phase: Math.floor(Math.random() * 12), age: 0, width});
   spawnIn = Math.max(.52, 1.45 - level * .14) + Math.random() * .3;
+  if (!muted && state === 'playing' && Math.random() < 0.85) playMeow();
 }
 function update(dt) {
   if (state !== 'playing') return;
@@ -215,16 +323,18 @@ function update(dt) {
       cat.done = true; caught++; score += 10; playerCatchAge = 0;
       particles.push({x:cat.x,y:cat.y,text:'+10',life:1,color:'#fff8ce'});
       $('floating-note').textContent = ['Отличная работа!','Ещё один кот в безопасности.','Мягкая посадка!'][caught % 3];
-      sound(540 + (caught % 5) * 90);
+      playCatchSound();
     } else if (cat.y > H + 45) {
       cat.done = true; lives--;
-      particles.push({x:cat.x,y:H-60,text:'−1 ♥',life:1,color:'#ffdbc3'}); sound(150,.2);
+      particles.push({x:cat.x,y:H-60,text:'−1 ♥',life:1,color:'#ffdbc3'}); playMissSound();
       if (lives <= 0) { finish(); break; }
     }
   }
   cats = cats.filter(c => !c.done);
   for (const p of particles) { p.life -= dt; p.y -= dt * 45; }
   particles = particles.filter(p => p.life > 0);
+  // Random meowing of falling cats while they are in the air
+  if (!muted && cats.length && Math.random() < 0.008) playMeow(420 + Math.random() * 260);
   hud();
 }
 function draw(time) {

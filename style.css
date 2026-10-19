@@ -44,3 +44,27 @@
 .install-label{font-size:11px}
 .install-button[hidden]{display:none}
 @media(max-width:380px){.install-button{padding:8px 10px}.install-label{display:none}}
+
+/* Android fullscreen: hide everything that overflows the main game window (as on screenshot).
+   Activated when the game is installed as Android PWA / APK (display-mode: standalone)
+   or via JS adding .is-standalone to <html>. */
+@media (display-mode: standalone) {
+  html, body { height:100%; overflow:hidden; }
+  body { background:#87cfe4; }
+  .header, .intro, .tips, footer, .game-bottom, .build-status { display:none !important; }
+  main { max-width:none; margin:0; padding:0; }
+  .game-shell { max-width:none; width:100%; height:100dvh; min-height:100dvh; border-radius:0; border:0; box-shadow:none; }
+  .game { height:100%; aspect-ratio:auto; }
+}
+html.is-standalone, html.is-standalone body { height:100%; overflow:hidden; }
+html.is-standalone body { background:#87cfe4; margin:0; }
+html.is-standalone .header,
+html.is-standalone .intro,
+html.is-standalone .tips,
+html.is-standalone footer,
+html.is-standalone .game-bottom,
+html.is-standalone .build-status { display:none !important; }
+html.is-standalone main { max-width:none; margin:0; padding:0; width:100%; }
+html.is-standalone .game-shell { max-width:none; width:100%; height:100dvh; min-height:100dvh; height:100dvh; border-radius:0; border:0; box-shadow:none; overflow:hidden; }
+html.is-standalone .game { height:100%; width:100%; aspect-ratio:auto; overflow:hidden; }
+html.is-standalone .game-shade { box-shadow:inset 0 0 70px #193a1b30; }
