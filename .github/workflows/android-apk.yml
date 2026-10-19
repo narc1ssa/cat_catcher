@@ -18,7 +18,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-apk:
@@ -61,6 +61,21 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug
+
+      - name: Commit APK to the repository
+        if: github.ref == 'refs/heads/arena/525e1fc9-cat-catcher'
+        run: |
+          mkdir -p artifacts/android
+          cp android/app/build/outputs/apk/debug/app-debug.apk artifacts/android/cat-catcher-debug.apk
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/android/cat-catcher-debug.apk
+          if git diff --cached --quiet; then
+            echo 'APK is unchanged; no repository update needed.'
+          else
+            git commit -m 'Add updated Android APK'
+            git push origin "HEAD:refs/heads/${GITHUB_REF_NAME}"
+          fi
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v7

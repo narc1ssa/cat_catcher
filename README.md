@@ -123,6 +123,6 @@ iframe — `node tests/browser-preview.cjs` (требует Playwright и
 Готовый APK находится в `artifacts/android/cat-catcher-debug.apk`. Это
 устанавливаемая debug-сборка (подпись Gradle); при установке Android может
 попросить разрешить приложения из выбранного источника. GitHub Actions
-пересобирает APK при изменениях игры и публикует артефакт `cat-catcher-android-apk`.
+пересобирает APK при изменениях игры, сохраняет его в репозитории и публикует артефакт `cat-catcher-android-apk`.
 Для сборки вручную нужен Android SDK и JDK 21; конфигурация приложения —
 `capacitor.config.json`.
