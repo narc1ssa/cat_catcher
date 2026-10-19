@@ -1,0 +1,86 @@
+name: Build Android APK
+
+on:
+  push:
+    branches:
+      - arena/525e1fc9-cat-catcher
+    paths:
+      - '.github/workflows/android-apk.yml'
+      - 'capacitor.config.json'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'index.html'
+      - 'game.js'
+      - 'style.css'
+      - 'assets/**'
+      - 'public/**'
+      - 'scripts/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out the game
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Set up Java
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Verify preinstalled Android SDK
+        run: |
+          test -f "$ANDROID_HOME/platforms/android-35/android.jar"
+          test -x "$ANDROID_HOME/build-tools/35.0.0/aapt2"
+          test -x "$ANDROID_HOME/platform-tools/adb"
+
+      - name: Build the web app
+        run: |
+          npm ci
+          npm run build
+
+      - name: Prepare Capacitor Android project
+        run: |
+          npm install --no-save --package-lock=false @capacitor/core@7.6.9 @capacitor/android@7.6.9 @capacitor/cli@7.6.9
+          npx cap add android
+          npx cap sync android
+
+      - name: Build installable debug APK
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+
+      - name: Commit APK to the repository
+        if: github.ref == 'refs/heads/arena/525e1fc9-cat-catcher'
+        run: |
+          mkdir -p artifacts/android
+          cp android/app/build/outputs/apk/debug/app-debug.apk artifacts/android/cat-catcher-debug.apk
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add artifacts/android/cat-catcher-debug.apk
+          if git diff --cached --quiet; then
+            echo 'APK is unchanged; no repository update needed.'
+          else
+            git commit -m 'Add updated Android APK'
+            git push origin "HEAD:refs/heads/${GITHUB_REF_NAME}"
+          fi
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: cat-catcher-android-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14

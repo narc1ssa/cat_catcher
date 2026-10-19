@@ -1,0 +1,11 @@
+{
+  "appId": "com.narc1ssa.catcatcher",
+  "appName": "Котолов",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": false
+  }
+}

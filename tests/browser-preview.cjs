@@ -2,14 +2,14 @@ const { chromium }=require('playwright');
 const chromiumPackage=require('@sparticuz/chromium').default;
 const assert=require('node:assert/strict');
 (async()=>{
- const browser=await chromium.launch({executablePath:await chromiumPackage.executablePath(),args:chromiumPackage.args,headless:true});
+ const browser=await chromium.launch({executablePath:await chromiumPackage.executablePath(),args:chromiumPackage.args.filter(arg=>arg!=='--single-process'),headless:true});
  try {
   for(const width of [1200,600]){
    const page=await browser.newPage({viewport:{width,height:1000}});
    const errors=[],external=[];
    page.on('pageerror',error=>errors.push(error.message));
    await page.route('**/*',route=>{
-    if(route.request().url()==='http://localhost:5173/')return route.continue();
+    if(new URL(route.request().url()).origin==='http://localhost:5173')return route.continue();
     external.push(route.request().url());return route.abort();
    });
    await page.addInitScript(()=>{HTMLCanvasElement.prototype.getContext=()=>null;window.requestAnimationFrame=()=>0;});
@@ -47,5 +47,34 @@ const assert=require('node:assert/strict');
    await page.screenshot({path:`.cache/standalone-${width}.png`,fullPage:true});
    console.log('PASS iframe',width,': ready, background, player, start, falling poses, arrows, pause; no external requests or errors.');
   }
+  const pwaPage=await browser.newPage({viewport:{width:390,height:844}});
+  const pwaErrors=[];
+  pwaPage.on('pageerror',error=>pwaErrors.push(error.message));
+  await pwaPage.goto('http://localhost:5173/');
+  await pwaPage.locator('#build-status').filter({hasText:'46/46 кадров готовы'}).waitFor();
+  const manifest=await pwaPage.evaluate(async()=>{
+   const response=await fetch(document.querySelector('link[rel="manifest"]').href);
+   return response.json();
+  });
+  assert.equal(manifest.display,'standalone');
+  await pwaPage.evaluate(()=>{
+   const event=new Event('beforeinstallprompt',{cancelable:true});
+   event.prompt=async()=>{};
+   event.userChoice=Promise.resolve({outcome:'accepted'});
+   window.dispatchEvent(event);
+  });
+  assert(await pwaPage.locator('#install').isVisible());
+  await pwaPage.locator('#install').click();
+  await pwaPage.locator('#install').waitFor({state:'hidden'});
+  await pwaPage.evaluate(async()=>{await navigator.serviceWorker.ready;return true;});
+  await pwaPage.reload();
+  assert(await pwaPage.evaluate(()=>Boolean(navigator.serviceWorker.controller)));
+  await pwaPage.context().setOffline(true);
+  await pwaPage.reload();
+  await pwaPage.locator('#build-status').filter({hasText:'46/46 кадров готовы'}).waitFor();
+  await pwaPage.context().setOffline(false);
+  assert.deepEqual(pwaErrors,[]);
+  console.log('PASS Android PWA: manifest, installed service worker, and offline launch.');
+  await pwaPage.close();
  } finally{await browser.close()}
 })().catch(error=>{console.error(error);process.exitCode=1});
